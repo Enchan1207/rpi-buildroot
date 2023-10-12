@@ -43,21 +43,8 @@ jobs:
           path: ${{ env.DOCKER_IMAGE_CACHE_PATH }}
           key: ${{ runner.os }}-docker-buildroot-${{ hashFiles('base.Dockerfile') }}"
 
-      - name: restore cached distribution directory
-        id: restore-distribution-dir
-        uses: actions/cache/restore@v3
-        with:
-          path: /dist
-          key: ${{ runner.os }}-docker-buildroot-${{ hashFiles('rpi3_sdk.config') }}"
-
       - name: build SDK using base container
         run: docker run --rm -i -v "$(pwd):/host" -v "$(pwd)/dist:/dist" enchan/buildroot_base /host/scripts/build_sdk.sh
-
-      - name: cache distribution directory
-        uses: actions/cache/save@v3
-        with:
-          path: /dist
-          key: ${{ runner.os }}-docker-buildroot-${{ hashFiles('rpi3_sdk.config') }}"
 
       - name: identify SDK path and prepare to upload
         id: sdk-prepare
