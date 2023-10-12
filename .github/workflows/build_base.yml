@@ -1,4 +1,4 @@
-j#
+#
 # Buildrootコンテナのビルド
 #
 name: docker container build test
