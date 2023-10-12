@@ -1,0 +1,31 @@
+#
+# Buildrootコンテナのビルド
+#
+name: docker container build test
+
+on:
+  push:
+    paths:
+      - base.Dockerfile
+  pull_request:
+    paths:
+      - base.Dockerfile
+
+jobs:
+  build_sdk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: build docker container
+        run: docker build -t enchan/buildroot_base:latest -f base.Dockerfile .
+
+      - name: build SDK
+        run: docker run --rm -d -v "$(pwd):/host" -v "$(pwd)/dist:/dist" enchan/buildroot_base /host/scripts/build_sdk.sh
+
+      - name: upload sdk to artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist
