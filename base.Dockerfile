@@ -12,7 +12,7 @@ RUN apt-get -y install tzdata; \
     update-locale LANG=ja_JP.UTF8; \
     dpkg-reconfigure tzdata
 
-# Buildrootの依存パッケージをインストール
+# 依存パッケージのインストール
 # ref: https://buildroot.org/downloads/manual/manual.html#requirement-optional
 RUN apt-get -y install \
     git sed binutils build-essential diffutils patch gzip bzip2 perl tar cpio \
