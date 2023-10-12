@@ -1,4 +1,4 @@
-#
+j#
 # Buildrootコンテナのビルド
 #
 name: docker container build test
@@ -9,6 +9,9 @@ on:
     paths:
       - base.Dockerfile
 
+env:
+  DOCKER_IMAGE_CACHE_PATH: buildroot_image
+
 jobs:
   build_sdk:
     runs-on: ubuntu-latest
@@ -16,8 +19,22 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: build docker container
-        run: docker build -t enchan/buildroot_base:latest -f base.Dockerfile .
+      - name: cache docker image
+        id: cache-docker-image
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.DOCKER_IMAGE_CACHE_PATH }}
+          key: ${{ runner.os }}-docker-buildroot-${{ hashFiles('base.Dockerfile') }}"
+
+      - name: load docker image if cached
+        if: steps.cache-docker-image.outputs.cache-hit == 'true'
+        run: docker load -i ${DOCKER_IMAGE_CACHE_PATH}
+
+      - name: build and save docker image if not cached
+        if: steps.cache-docker-image.outputs.cache-hit != 'true'
+        run: |
+          docker build -t enchan/buildroot_base:latest -f base.Dockerfile .
+          docker save enchan/buildroot_base -o ${DOCKER_IMAGE_CACHE_PATH}
 
       - name: build SDK
         run: docker run --rm -i -v "$(pwd):/host" -v "$(pwd)/dist:/dist" enchan/buildroot_base /host/scripts/build_sdk.sh
