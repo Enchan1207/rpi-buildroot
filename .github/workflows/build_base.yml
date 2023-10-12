@@ -1,7 +1,7 @@
 #
 # Buildrootコンテナのビルド
 #
-name: docker container build test
+name: build base buildroot container
 
 on:
   push:
@@ -42,5 +42,5 @@ jobs:
       - name: upload sdk to artifact
         uses: actions/upload-artifact@v3
         with:
-          name: dist
-          path: dist
+          name: images
+          path: dist/images
