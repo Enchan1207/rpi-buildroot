@@ -49,8 +49,9 @@ jobs:
       - name: identify SDK path and prepare to upload
         id: sdk-prepare
         run: |
-          ls -la /dist/images
-          SDK_PATH=`ls -1 /dist/images | grep ".tar.gz$"`
+          DISTDIR=./dist
+          ls -la ${DISTDIR}/images
+          SDK_PATH=`find ${DISTDIR}/images -name "*.tar.gz"`
           SDK_NAME=`basename $SDK_PATH`
           sudo mv $SDK_PATH ./$SDK_NAME
           sudo chown runner:runner ./$SDK_NAME
