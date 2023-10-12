@@ -22,7 +22,7 @@ jobs:
         run: docker build -t enchan/buildroot_base:latest -f base.Dockerfile .
 
       - name: build SDK
-        run: docker run --rm -d -v "$(pwd):/host" -v "$(pwd)/dist:/dist" enchan/buildroot_base /host/scripts/build_sdk.sh
+        run: docker run --rm -it -v "$(pwd):/host" -v "$(pwd)/dist:/dist" enchan/buildroot_base /host/scripts/build_sdk.sh
 
       - name: upload sdk to artifact
         uses: actions/upload-artifact@v3
