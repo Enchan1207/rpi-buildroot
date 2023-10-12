@@ -20,27 +20,43 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: cache docker image
-        id: cache-docker-image
-        uses: actions/cache@v3
+        id: restore-docker-image
+        uses: actions/cache/restore@v3
         with:
           path: ${{ env.DOCKER_IMAGE_CACHE_PATH }}
           key: ${{ runner.os }}-docker-buildroot-${{ hashFiles('base.Dockerfile') }}"
 
       - name: load docker image if cached
-        if: steps.cache-docker-image.outputs.cache-hit == 'true'
+        if: steps.restore-docker-image.outputs.cache-hit == 'true'
         run: docker load -i ${DOCKER_IMAGE_CACHE_PATH}
 
       - name: build and save docker image if not cached
-        if: steps.cache-docker-image.outputs.cache-hit != 'true'
+        if: steps.restore-docker-image.outputs.cache-hit != 'true'
         run: |
           docker build -t enchan/buildroot_base:latest -f base.Dockerfile .
           docker save enchan/buildroot_base -o ${DOCKER_IMAGE_CACHE_PATH}
 
-      - name: build SDK
+      - name: cache docker image
+        if: steps.restore-docker-image.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: ${{ env.DOCKER_IMAGE_CACHE_PATH }}
+          key: ${{ runner.os }}-docker-buildroot-${{ hashFiles('base.Dockerfile') }}"
+
+      - name: build SDK using base container
         run: docker run --rm -i -v "$(pwd):/host" -v "$(pwd)/dist:/dist" enchan/buildroot_base /host/scripts/build_sdk.sh
 
-      - name: upload sdk to artifact
+      - name: identify SDK path and prepare to upload
+        id: sdk-prepare
+        run: |
+          SDK_PATH=`find /dist/images/ -name "*.tar.gz"`
+          SDK_NAME=`basename $SDK_PATH`
+          sudo chown runner:runner $SDK_PATH
+          mv $SDK_PATH ./$SDK_NAME
+          echo "sdk-name=$SDK_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: upload SDK as artifact
         uses: actions/upload-artifact@v3
         with:
-          name: images
-          path: dist/images
+          name: ${{ steps.sdk-prepare.outputs.sdk-name }}
+          path: ./${{ steps.sdk-prepare.outputs.sdk-name }}
