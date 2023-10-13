@@ -1,7 +1,7 @@
 #
-# Buildrootコンテナのビルド
+# Buildroot SDKのビルド
 #
-name: build base buildroot container
+name: build Buildroot SDK
 
 on:
   push:
@@ -11,15 +11,10 @@ on:
 
 env:
   BUILDROOT_BASE_IMAGE_CACHE_PATH: buildroot_base_image
-  BUILDROOT_DIST_IMAGE_PATH: buildroot_dist_image
 
 jobs:
   build_sdk:
     runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write
-      contents: read
 
     steps:
       - uses: actions/checkout@v3
@@ -51,38 +46,31 @@ jobs:
       - name: build SDK using base container
         run: docker run --rm -i -v "$(pwd):/host" -v "$(pwd)/dist:/dist" enchan/buildroot_base /host/scripts/build_sdk.sh
 
-      - name: identify SDK path
-        id: sdk-prepare
+      - name: identify distrubution files path
+        id: dist-prepare
         run: |
           DISTDIR=./dist
+          ls -la ${DISTDIR}
           ls -la ${DISTDIR}/images
-          SDK_PATH=`find ${DISTDIR}/images -name "*.tar.gz"`
-          SDK_NAME=`basename $SDK_PATH`
-          sudo mv $SDK_PATH ./$SDK_NAME
-          sudo chown runner:runner ./$SDK_NAME
-          echo "sdk-name=$SDK_NAME" >> "$GITHUB_OUTPUT"
+          SDK_ORIGIN_PATH=`find ${DISTDIR}/images -name "*.tar.gz"`
+          SDK_NAME=`basename $SDK_ORIGIN_PATH`
+          sudo mv $SDK_ORIGIN_PATH ./$SDK_NAME
+          sudo mv ${DISTDIR}/legal-info.tar.gz ./
+          sudo chown runner:runner ./legal-info.tar.gz ./$SDK_NAME
+          echo "sdk-path=./$SDK_NAME" >> "$GITHUB_OUTPUT"
+          echo "legal-info-path=./legal-info.tar.gz" >> "$GITHUB_OUTPUT"
 
-      - name: build and save buildroot docker image
-        run: |
-          docker build -t enchan/buildroot:latest -f dist.Dockerfile . --build-arg SDK_PATH=${{ steps.sdk-prepare.outputs.sdk-name }}
-          docker save enchan/buildroot -o ${{ env.BUILDROOT_DIST_IMAGE_PATH }}
-
-      - name: upload built image as artifact
+      - name: upload SDK as artifact
         uses: actions/upload-artifact@v3
         with:
-          name: Buildroot distribution image
-          path: ${{ env.BUILDROOT_DIST_IMAGE_PATH }}
+          name: SDK
+          path: ${{ steps.dist-prepare.outputs.sdk-path }}
 
-      - uses: google-github-actions/auth@v1
+      - name: draft release
+        uses: softprops/action-gh-release@v1
         with:
-          workload_identity_provider: ${{ secrets.GOOGLE_WORKLOAD_IDENTITY_PROVIDER_NAME }}
-          service_account: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
-          access_token_scopes: https://www.googleapis.com/auth/drive
-
-      - name: upload image to google drive
-        uses: Enchan1207/upload-googledrive@v1
-        with:
-          filepath: ${{ env.BUILDROOT_DIST_IMAGE_PATH }}
-          name: docker-buildroot-dist
-          parent: ${{ secrets.FOLDER_ID }}
-          overwrite: true
+          name: SDK release draft
+          draft: true
+          files: |
+            ${{ steps.dist-prepare.outputs.sdk-path }}
+            ${{ steps.dist-prepare.outputs.legal-info-path }}
