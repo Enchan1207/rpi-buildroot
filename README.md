@@ -10,6 +10,5 @@ Raspberry Piのカスタムイメージをなるべく高速(CIで回せる程�
 
  - ✅ とりあえず最低限Buildrootが動作する状態のイメージを作る
  - ✅ RPi用に構成してSDKをビルドする
- - BuildrootイメージにRPiのSDKを同梱し、すぐにビルドできる状態のものを作る
-
-
+ - ✅ BuildrootイメージにRPiのSDKを同梱し、すぐにビルドできる状態のものを作る
+ - ✅ ビルドしたDockerイメージをGoogleドライブにアップロード
