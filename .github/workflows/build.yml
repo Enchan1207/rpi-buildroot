@@ -65,13 +65,13 @@ jobs:
       - name: build and save buildroot docker image
         run: |
           docker build -t enchan/buildroot:latest -f dist.Dockerfile . --build-arg SDK_PATH=${{ steps.sdk-prepare.outputs.sdk-name }}
-          docker save enchan/buildroot -o ${BUILDROOT_DIST_IMAGE_PATH}
+          docker save enchan/buildroot -o ${{ env.BUILDROOT_DIST_IMAGE_PATH }}
 
       - name: upload built image as artifact
         uses: actions/upload-artifact@v3
         with:
           name: Buildroot distribution image
-          path: ${BUILDROOT_DIST_IMAGE_PATH}
+          path: ${{ env.BUILDROOT_DIST_IMAGE_PATH }}
 
       - uses: google-github-actions/auth@v1
         with:
@@ -82,7 +82,7 @@ jobs:
       - name: upload image to google drive
         uses: Enchan1207/upload-googledrive@v1
         with:
-          filepath: ${BUILDROOT_DIST_IMAGE_PATH}
+          filepath: ${{ env.BUILDROOT_DIST_IMAGE_PATH }}
           name: docker-buildroot-dist
           parent: ${{ secrets.FOLDER_ID }}
           overwrite: true
