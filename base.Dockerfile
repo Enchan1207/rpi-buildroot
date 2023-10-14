@@ -5,7 +5,7 @@ FROM ubuntu:20.04
 
 # Buildrootのバージョンが指定されていることを確認
 ARG buildroot_version
-RUN test -n "$buildroot_version" || (echo "required argument not specified: buildroot_version" && false)
+RUN test -n "$buildroot_version" || (echo "required argument 'buildroot_version' does not specified." && false)
 
 # パッケージマネージャの更新
 RUN apt-get update
