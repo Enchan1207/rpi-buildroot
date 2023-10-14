@@ -1,0 +1,34 @@
+#
+# Buildrootベースイメージのビルド
+#
+name: build Buildroot base image
+
+on:
+  push:
+    paths:
+      - base.Dockerfile
+
+env:
+  BUILDROOT_BASE_IMAGE_NAME: enchan1207/buildroot_base:latest
+
+jobs:
+  build_br_base:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: enchan1207
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: build image and push to registry
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          file: base.Dockerfile
+          tags: ${{ env.BUILDROOT_BASE_IMAGE_NAME }}
+          build-args:
+            buildroot_version: "2023.08.1"

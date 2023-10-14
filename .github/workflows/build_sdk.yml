@@ -1,0 +1,73 @@
+#
+# Buildroot SDKのビルド
+#
+name: build Buildroot SDK
+
+on: workflow_dispatch
+
+env:
+  BUILDROOT_BASE_IMAGE_CACHE_NAME: docker-buildroot_base
+  BUILDROOT_BASE_IMAGE_NAME: enchan1207/buildroot_base:latest
+
+jobs:
+  build_sdk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Buildrootベースイメージをキャッシュからリストア
+      - name: restore cached Buildroot base image
+        id: restore-docker-image
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ env.BUILDROOT_BASE_IMAGE_CACHE_NAME }}
+          key: ${{ env.BUILDROOT_BASE_IMAGE_CACHE_NAME }}
+
+      # キャッシュされていれば読み込む
+      - name: load image if cached
+        if: steps.restore-docker-image.outputs.cache-hit == 'true'
+        run: docker load -i ${{ env.BUILDROOT_BASE_IMAGE_CACHE_NAME }}
+
+      # キャッシュされていなければ、Docker Hubからpull
+      - name: pull image from Docker Hub if not cached
+        if: steps.restore-docker-image.outputs.cache-hit != 'true'
+        run: |
+          docker pull ${{ env.BUILDROOT_BASE_IMAGE_NAME }}
+          docker save ${{ env.BUILDROOT_BASE_IMAGE_NAME }} -o ${{ env.BUILDROOT_BASE_IMAGE_CACHE_NAME }}
+
+      # イメージをキャッシュしておく
+      - name: cache image if not cached
+        if: steps.restore-docker-image.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: ${{ env.BUILDROOT_BASE_IMAGE_CACHE_NAME }}
+          key: ${{ env.BUILDROOT_BASE_IMAGE_CACHE_NAME }}
+
+      # ベースイメージとリポジトリにあるコンフィグファイルを使ってSDKをビルド
+      - name: build SDK using base image
+        run: docker run --rm -i -v "$(pwd):/host" -v "$(pwd)/dist:/dist" ${{ env.BUILDROOT_BASE_IMAGE_NAME }} /host/scripts/build_sdk.sh
+
+      # ビルド結果の取り出し
+      - name: extract outputs
+        id: dist-prepare
+        run: |
+          DISTDIR=./dist
+          ls -la ${DISTDIR}
+          ls -la ${DISTDIR}/images
+          SDK_ORIGIN_PATH=`find ${DISTDIR}/images -name "*.tar.gz"`
+          sudo mv $SDK_ORIGIN_PATH ./sdk.tar.gz
+          sudo mv ${DISTDIR}/legal-info.tar.gz ./
+          sudo chown runner:runner ./legal-info.tar.gz ./sdk.tar.gz
+          echo "sdk-path=./sdk.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "legal-info-path=./legal-info.tar.gz" >> "$GITHUB_OUTPUT"
+
+      # 取り出した成果物をもとにリリースドラフトを作成
+      - name: draft release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: release draft
+          draft: true
+          files: |
+            ${{ steps.dist-prepare.outputs.sdk-path }}
+            ${{ steps.dist-prepare.outputs.legal-info-path }}
