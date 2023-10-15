@@ -29,21 +29,33 @@ RUN apt-get -y install \
     libssl-dev autopoint gettext
 
 # ソースインストールが必要な子たち
+
+# hiredis
 WORKDIR /build-from-source
 RUN git clone https://github.com/redis/hiredis
 WORKDIR /build-from-source/hiredis
 RUN make -j4 && make install
+
+# libconfuse
 WORKDIR /build-from-source
 RUN git clone https://github.com/libconfuse/libconfuse
 WORKDIR /build-from-source/libconfuse
 RUN ./autogen.sh && ./configure && make -j4 && make install
 RUN ldconfig
+
+# genimage
+WORKDIR /build-from-source
 RUN git clone https://github.com/pengutronix/genimage
 WORKDIR /build-from-source/genimage
 RUN ./autogen.sh && ./configure && make -j4 && make install
+
+# gettext-tiny
+WORKDIR /build-from-source
 RUN git clone https://github.com/sabotage-linux/gettext-tiny
 WORKDIR /build-from-source/gettext-tiny
 RUN make -j4 && make install
+
+# ビルドディレクトリ全体を削除
 WORKDIR /
 RUN rm -rf build-from-source
 
