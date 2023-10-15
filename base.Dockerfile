@@ -22,6 +22,29 @@ RUN apt-get -y install \
     git sed binutils build-essential diffutils patch gzip bzip2 perl tar cpio \
     unzip rsync file bc wget findutils libncursesw5-dev ssh
 
+# ビルド中に必要となることが予想されるパッケージ群のインストール
+RUN apt-get -y install \
+    cmake pkgconf zstd ccache m4 libtool autoconf automake zlib1g util-linux \
+    e2fsprogs attr acl fakeroot dosfstools kmod mtools lzip patchelf bison flex \
+    libssl-dev
+RUN git clone https://github.com/redis/hiredis; \
+    cd hiredis; \
+    make -j4 && make install; \
+    cd ..; rm -rf hiredis
+RUN git clone https://github.com/libconfuse/libconfuse;\
+    cd libconfuse; \
+    ./configure && make -j4 && make install; \
+    ldconfig; \
+    cd ..; rm -rf libconfuse
+RUN git clone https://github.com/pengutronix/genimage; \
+    cd genimage;\
+    ./autogen.sh && ./configure && make -j4 && make install; \
+    cd ..; rm -rf genimage
+RUN git clone https://github.com/sabotage-linux/gettext-tiny; \
+    cd gettext-tiny; \
+    make -j4 && make install; \
+    cd ..; rm -rf gettext-tiny
+
 # Buildrootの取得・展開
 ARG buildroot_name=buildroot-${buildroot_version}
 RUN wget https://buildroot.org/downloads/${buildroot_name}.tar.gz
