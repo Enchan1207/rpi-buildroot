@@ -26,7 +26,7 @@ RUN apt-get -y install \
 RUN apt-get -y install \
     cmake pkgconf zstd ccache m4 libtool autoconf automake zlib1g util-linux \
     e2fsprogs attr acl fakeroot dosfstools kmod mtools lzip patchelf bison flex \
-    libssl-dev
+    libssl-dev autopoint gettext
 
 # ソースインストールが必要な子たち
 WORKDIR /build-from-source
