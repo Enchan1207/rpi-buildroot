@@ -47,7 +47,9 @@ runs:
           echo "Specified Buildroot configuration file not exists: \"${{ inputs.config_file }}\""
           exit 1
         fi
-        echo "config_file=$(realpath "${{ inputs.config_file }}")" >> "$GITHUB_OUTPUT"
+        configFileAbsPath=`realpath "${{ inputs.config_file }}"`
+        echo "Buildroot configuration file: $configFileAbsPath"
+        echo "config_file=$configFileAbsPath" >> "$GITHUB_OUTPUT"
 
         if [ -n "${{ inputs.pre_build_script }}" ]; then
           echo "has_pre_build_script=true" >> "$GITHUB_OUTPUT"
@@ -56,7 +58,10 @@ runs:
             echo "Specified pre-build script not exists: \"${{ inputs.pre_build_script }}\""
             exit 1
           fi
-          echo "pre_build_script=$(realpath "${{ inputs.pre_build_script }}")" >> "$GITHUB_OUTPUT"
+
+          prebuildScriptAbsPath=`realpath "${{ inputs.pre_build_script }}"`
+          echo "pre-build script: $prebuildScriptAbsPath"
+          echo "pre_build_script=$prebuildScriptAbsPath" >> "$GITHUB_OUTPUT"
         fi
 
         if [ -n "${{ inputs.post_build_script }}" ]; then
@@ -66,7 +71,10 @@ runs:
             echo "Specified post-build script not exists: \"${{ inputs.post_build_script }}\""
             exit 1
           fi
-          echo "post_build_script=$(realpath "${{ inputs.post_build_script }}")" >> "$GITHUB_OUTPUT"
+
+          postbuildScriptAbsPath=`realpath "${{ inputs.post_build_script }}"`
+          echo "post-build script: $postbuildScriptAbsPath"
+          echo "post_build_script=$postbuildScriptAbsPath" >> "$GITHUB_OUTPUT"
         fi
 
         if [ -n "${{ inputs.rootfs_overlay_dir }}" ]; then
@@ -76,16 +84,21 @@ runs:
             echo "Specified OverlayFS directory not exists: \"${{ inputs.rootfs_overlay_dir }}\""
             exit 1
           fi
-          echo "rootfs_overlay_dir=$(realpath "${{ inputs.rootfs_overlay_dir }}")" >> "$GITHUB_OUTPUT"
+
+          rootfsOverlayDir=`realpath "${{ inputs.rootfs_overlay_dir }}"`
+          echo "rootfs overlay root: $rootfsOverlayDir"
+          echo "rootfs_overlay_dir=$rootfsOverlayDir" >> "$GITHUB_OUTPUT"
         fi
 
-        absWorkdirPath=`realpath -m "${{ inputs.workdir }}"`
-        mkdir -p $absWorkdirPath
-        echo "workdir=$absWorkdirPath" >> "$GITHUB_OUTPUT"
+        workdirAbsPath=`realpath -m "${{ inputs.workdir }}"`
+        mkdir -p $workdirAbsPath
+        echo "Working directory: $workdirAbsPath"
+        echo "workdir=$workdirAbsPath" >> "$GITHUB_OUTPUT"
 
-        absOutputPath=`realpath -m "${{ inputs.output_path }}"`
-        mkdir -p $absOutputPath
-        echo "output_path=$absOutputPath" >> "$GITHUB_OUTPUT"
+        outputAbsPath=`realpath -m "${{ inputs.output_path }}"`
+        mkdir -p $outputAbsPath
+        echo "Distribution destination: $outputAbsPath"
+        echo "output_path=$outputAbsPath" >> "$GITHUB_OUTPUT"
 
     # 1. Buildrootイメージの準備
     #
@@ -201,20 +214,18 @@ runs:
     # Raspberry Piイメージをビルドし、結果を取り出す
     - name: build Raspberry Pi image
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
-      run: |
-        docker exec ${{ steps.br_container.outputs.container_id }} make O=/dist
+      run: docker exec ${{ steps.br_container.outputs.container_id }} make O=/dist
     - name: take out built raspberry pi image
       shell: bash
       working-directory: ${{ steps.args.outputs.workdir }}
       run: |
+        ls -la dist/images
         sudo mv dist/images/sdcard.img ${{ steps.args.outputs.output_path }}
         sudo chown -R runner:runner ${{ steps.args.outputs.output_path }}
 
     # ポストビルドスクリプトがある場合はコンテナにコピーして実行
     - name: exec post-build script
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
       run: |
         if [ "${{ steps.args.outputs.has_post_build_script }}" != "true" ]; then
           exit 0
