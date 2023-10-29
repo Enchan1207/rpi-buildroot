@@ -16,7 +16,7 @@ distributionDir=dist
 mkdir -p $distributionDir
 
 # コンフィグがあるならdistにコピーする
-configFileName=${1:=".config"}
+configFileName=${1:-".config"}
 if [ -e $configFileName ]; then
     echo "Configuration file found. copy to ${distributionDir}..."
     cp $configFileName ${distributionDir}/.config

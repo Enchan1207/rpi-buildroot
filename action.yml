@@ -134,17 +134,6 @@ runs:
     #
     # 構成ファイルのコピーやビルドキャッシュの復元など、イメージのビルドに必要な準備を行います。
 
-    # リポジトリにある構成ファイルを、キャッシュパスを書き換えてBuildrootディレクトリにコピー
-    - name: copy configuration file
-      shell: bash
-      working-directory: ${{ github.action_path }}
-      run: |
-        mkdir -p dist
-        cat "${{ steps.args.outputs.config_file }}" \
-          | sed "s/^BR2_CCACHE_DIR=.*$/BR2_CCACHE_DIR=\"\/cache\"/" \
-          | sed "s/^BR2_ROOTFS_OVERLAY=.*$/BR2_ROOTFS_OVERLAY=\"\/rfs\"/" \
-          > dist/.config
-
     # ビルドキャッシュを復元
     - name: restore build cache
       id: restore-build-cache
@@ -163,6 +152,17 @@ runs:
           tar xzf dist.tar.gz
           tar xzf cache.tar.gz
         fi
+
+    # リポジトリにある構成ファイルを、キャッシュパスを書き換えてBuildrootディレクトリにコピー
+    - name: copy configuration file
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        mkdir -p dist
+        cat "${{ steps.args.outputs.config_file }}" \
+          | sed "s/^BR2_CCACHE_DIR=.*$/BR2_CCACHE_DIR=\"\/cache\"/" \
+          | sed "s/^BR2_ROOTFS_OVERLAY=.*$/BR2_ROOTFS_OVERLAY=\"\/rfs\"/" \
+          > dist/.config
 
     # 3. イメージのビルド
     #
