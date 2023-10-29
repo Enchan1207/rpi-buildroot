@@ -32,7 +32,7 @@ inputs:
     description: "Path to script to run in container after build (e.g. cleaning up build directory)"
     required: false
 
-  overlayfs_rootdir:
+  rootfs_overlay_dir:
     description: "Path to RootFS-overlay directory"
     required: false
 
@@ -69,14 +69,14 @@ runs:
           echo "post_build_script=$(realpath "${{ inputs.post_build_script }}")" >> "$GITHUB_OUTPUT"
         fi
 
-        if [ -n "${{ inputs.overlayfs_rootdir }}" ]; then
-          echo "has_overlayfs_rootdir=true" >> "$GITHUB_OUTPUT"
+        if [ -n "${{ inputs.rootfs_overlay_dir }}" ]; then
+          echo "has_rootfs_overlay_dir=true" >> "$GITHUB_OUTPUT"
 
-          if [ ! -e "${{ inputs.overlayfs_rootdir }}" ];  then
-            echo "Specified OverlayFS directory not exists: \"${{ inputs.overlayfs_rootdir }}\""
+          if [ ! -e "${{ inputs.rootfs_overlay_dir }}" ];  then
+            echo "Specified OverlayFS directory not exists: \"${{ inputs.rootfs_overlay_dir }}\""
             exit 1
           fi
-          echo "overlayfs_rootdir=$(realpath "${{ inputs.overlayfs_rootdir }}")" >> "$GITHUB_OUTPUT"
+          echo "rootfs_overlay_dir=$(realpath "${{ inputs.rootfs_overlay_dir }}")" >> "$GITHUB_OUTPUT"
         fi
 
         absWorkdirPath=`realpath -m "${{ inputs.workdir }}"`
@@ -137,7 +137,10 @@ runs:
       working-directory: ${{ steps.args.outputs.workdir }}
       run: |
         mkdir -p dist
-        cat "${{ steps.args.outputs.config_file }}" | sed "s/^BR2_CCACHE_DIR=.*$/BR2_CCACHE_DIR=\"\/cache\"/" > dist/.config
+        cat "${{ steps.args.outputs.config_file }}" \
+          | sed "s/^BR2_CCACHE_DIR=.*$/BR2_CCACHE_DIR=\"\/cache\"/" \
+          | sed "s/^BR2_ROOTFS_OVERLAY=.*$/BR2_ROOTFS_OVERLAY=\"\/rfs\"/" \
+          > dist/.config
 
     # ビルドキャッシュを復元
     - name: restore build cache
@@ -169,7 +172,13 @@ runs:
       shell: bash
       working-directory: ${{ steps.args.outputs.workdir }}
       run: |
-        containerID=`docker run --rm -id -v ./dist:/dist -v ./cache:/cache enchan1207/buildroot`
+        if [ "${{ steps.args.outputs.has_rootfs_overlay_dir }}" = "true" ]; then
+          volumeArgument="-v ./dist:/dist -v ./cache:/cache -v ${{ steps.args.outputs.rootfs_overlay_dir }}:/rfs"
+        else
+          mkdir rfs
+          volumeArgument="-v ./dist:/dist -v ./cache:/cache -v ./rfs:/rfs"
+        fi
+        containerID=`docker run --rm -id $volumeArgument enchan1207/buildroot`
         echo "Buildroot container started: $containerID"
         echo "container_id=$containerID" >> "$GITHUB_OUTPUT"
 
