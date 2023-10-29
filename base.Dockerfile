@@ -22,42 +22,8 @@ RUN apt-get -y install \
     git sed binutils build-essential diffutils patch gzip bzip2 perl tar cpio \
     unzip rsync file bc wget findutils libncursesw5-dev ssh
 
-# ビルド中に必要となることが予想されるパッケージ群のインストール
-RUN apt-get -y install \
-    cmake pkgconf zstd ccache m4 libtool autoconf automake zlib1g util-linux \
-    e2fsprogs attr acl fakeroot dosfstools kmod mtools lzip patchelf bison flex \
-    libssl-dev autopoint gettext
-
-# ソースインストールが必要な子たち
-
-# hiredis
-WORKDIR /build-from-source
-RUN git clone https://github.com/redis/hiredis
-WORKDIR /build-from-source/hiredis
-RUN make -j4 && make install
-
-# libconfuse
-WORKDIR /build-from-source
-RUN git clone https://github.com/libconfuse/libconfuse
-WORKDIR /build-from-source/libconfuse
-RUN ./autogen.sh && ./configure && make -j4 && make install
-RUN ldconfig
-
-# genimage
-WORKDIR /build-from-source
-RUN git clone https://github.com/pengutronix/genimage
-WORKDIR /build-from-source/genimage
-RUN ./autogen.sh && ./configure && make -j4 && make install
-
-# gettext-tiny
-WORKDIR /build-from-source
-RUN git clone https://github.com/sabotage-linux/gettext-tiny
-WORKDIR /build-from-source/gettext-tiny
-RUN make -j4 && make install
-
-# ビルドディレクトリ全体を削除
-WORKDIR /
-RUN rm -rf build-from-source
+# Python用の追加パッケージのインストール
+RUN apt-get -y install python3-pip python3-setuptools
 
 # Buildrootの取得・展開
 ARG buildroot_name=buildroot-${buildroot_version}
