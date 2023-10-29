@@ -19,11 +19,6 @@ inputs:
     required: false
     default: "sdcard.img"
 
-  workdir:
-    description: "Buildroot working directory (default: ~/rpi-buildroot)"
-    required: false
-    default: "~/rpi-buildroot"
-
   pre_build_script:
     description: "Path to script to run in container before build (e.g. invoke utils/scanpypi)"
     required: false
@@ -90,11 +85,6 @@ runs:
           echo "rootfs_overlay_dir=$rootfsOverlayDir" >> "$GITHUB_OUTPUT"
         fi
 
-        workdirAbsPath=`realpath -m "${{ inputs.workdir }}"`
-        mkdir -p $workdirAbsPath
-        echo "Working directory: $workdirAbsPath"
-        echo "workdir=$workdirAbsPath" >> "$GITHUB_OUTPUT"
-
         outputAbsPath=`realpath -m "${{ inputs.output_path }}"`
         mkdir -p $outputAbsPath
         echo "Distribution destination: $outputAbsPath"
@@ -110,14 +100,14 @@ runs:
       id: restore-buildroot-image
       uses: actions/cache/restore@v3
       with:
-        path: "${{ steps.args.outputs.workdir }}/enchan1207-buildroot"
+        path: "${{ github.action_path }}/enchan1207-buildroot"
         key: buildroot_docker_image
 
     # キャッシュされていれば読み込む, そうでなければビルドする
     - name: load image if cached
       if: steps.restore-buildroot-image.outputs.cache-hit == 'true'
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
+      working-directory: ${{ github.action_path }}
       run: docker load -i "enchan1207-buildroot"
     - name: build Buildroot image
       if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
@@ -131,13 +121,13 @@ runs:
     - name: write built image to file
       if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
+      working-directory: ${{ github.action_path }}
       run: docker save "enchan1207/buildroot" -o "enchan1207-buildroot"
     - name: cache Buildroot image
       if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
       uses: actions/cache/save@v3
       with:
-        path: "${{ steps.args.outputs.workdir }}/enchan1207-buildroot"
+        path: "${{ github.action_path }}/enchan1207-buildroot"
         key: buildroot_docker_image
 
     # 2. ビルドの準備
@@ -147,7 +137,7 @@ runs:
     # リポジトリにある構成ファイルを、キャッシュパスを書き換えてBuildrootディレクトリにコピー
     - name: copy configuration file
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
+      working-directory: ${{ github.action_path }}
       run: |
         mkdir -p dist
         cat "${{ steps.args.outputs.config_file }}" \
@@ -161,12 +151,12 @@ runs:
       uses: actions/cache/restore@v3
       with:
         path: |
-          ${{ steps.args.outputs.workdir }}/dist.tar.gz
-          ${{ steps.args.outputs.workdir }}/cache.tar.gz
+          ${{ github.action_path }}/dist.tar.gz
+          ${{ github.action_path }}/cache.tar.gz
         key: buildroot_build_cache
     - name: extract build cache
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
+      working-directory: ${{ github.action_path }}
       run: |
         if [ -e cache.tar.gz -a -e dist.tar.gz ]; then 
           file dist.tar.gz cache.tar.gz
@@ -183,7 +173,7 @@ runs:
     - name: boot Buildroot container
       id: br_container
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
+      working-directory: ${{ github.action_path }}
       run: |
         if [ "${{ steps.args.outputs.has_rootfs_overlay_dir }}" = "true" ]; then
           volumeArgument="-v ./dist:/dist -v ./cache:/cache -v ${{ steps.args.outputs.rootfs_overlay_dir }}:/rfs"
@@ -198,7 +188,7 @@ runs:
     # プレビルドスクリプトがある場合はコンテナにコピーして実行
     - name: exec pre-build script
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
+      working-directory: ${{ github.action_path }}
       run: |
         if [ "${{ steps.args.outputs.has_pre_build_script }}" != "true" ]; then
           exit 0
@@ -217,7 +207,7 @@ runs:
       run: docker exec ${{ steps.br_container.outputs.container_id }} make O=/dist
     - name: take out built raspberry pi image
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
+      working-directory: ${{ github.action_path }}
       run: |
         ls -la dist/images
         sudo mv dist/images/sdcard.img ${{ steps.args.outputs.output_path }}
@@ -246,7 +236,7 @@ runs:
     #　パーミッションを戻し、キャッシュを圧縮
     - name: cache preparation
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
+      working-directory: ${{ github.action_path }}
       run: |
         echo "Prepare for cache..."
         sudo chown -R runner:runner dist
@@ -259,7 +249,7 @@ runs:
     - name: remove existing cache
       if: steps.restore-build-cache.outputs.cache-hit == 'true'
       shell: bash
-      working-directory: ${{ steps.args.outputs.workdir }}
+      working-directory: ${{ github.action_path }}
       run: |
         echo "Remove existing Buildroot build cache..."
         gh api \
@@ -274,6 +264,6 @@ runs:
       uses: actions/cache/save@v3
       with:
         path: |
-          ${{ steps.args.outputs.workdir }}/dist.tar.gz
-          ${{ steps.args.outputs.workdir }}/cache.tar.gz
+          ${{ github.action_path }}/dist.tar.gz
+          ${{ github.action_path }}/cache.tar.gz
         key: buildroot_build_cache
