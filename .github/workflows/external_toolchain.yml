@@ -1,7 +1,7 @@
 #
-# Buildroot SDKのビルド
+# Buildroot外部ツールチェーンのビルド
 #
-name: build Buildroot SDK
+name: build external toolchain
 
 on: workflow_dispatch
 

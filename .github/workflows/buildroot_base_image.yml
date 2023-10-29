@@ -4,6 +4,7 @@
 name: build Buildroot base image
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - base.Dockerfile

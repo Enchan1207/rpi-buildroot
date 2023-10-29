@@ -1,0 +1,259 @@
+#
+# GitHub Action for create Buildroot image of Raspberry Pi
+#
+
+name: "create-custom-rpi-image"
+description: "Create custom Raspberry Pi image using Buildroot"
+
+inputs:
+  github_token:
+    description: "GitHub Token for gh CLI"
+    required: true
+
+  config_file:
+    description: "Path to Buildroot config file"
+    required: true
+
+  output_path:
+    description: "Output destination of the built image (default: (workspace)/sdcard.img)"
+    required: false
+    default: "sdcard.img"
+
+  workdir:
+    description: "Buildroot working directory (default: ~/rpi-buildroot)"
+    required: false
+    default: "~/rpi-buildroot"
+
+  pre_build_script:
+    description: "Path to script to run in container before build (e.g. invoke utils/scanpypi)"
+    required: false
+
+  post_build_script:
+    description: "Path to script to run in container after build (e.g. cleaning up build directory)"
+    required: false
+
+  overlayfs_rootdir:
+    description: "Path to RootFS-overlay directory"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check passed arguments
+      id: args
+      shell: bash
+      run: |
+        if [ ! -e "${{ inputs.config_file }}" ]; then
+          echo "Specified Buildroot configuration file not exists: \"${{ inputs.config_file }}\""
+          exit 1
+        fi
+        echo "config_file=$(realpath "${{ inputs.config_file }}")" >> "$GITHUB_OUTPUT"
+
+        if [ -n "${{ inputs.pre_build_script }}" ]; then
+          echo "has_pre_build_script=true" >> "$GITHUB_OUTPUT"
+
+          if [ ! -e "${{ inputs.pre_build_script }}" ];  then
+            echo "Specified pre-build script not exists: \"${{ inputs.pre_build_script }}\""
+            exit 1
+          fi
+          echo "pre_build_script=$(realpath "${{ inputs.pre_build_script }}")" >> "$GITHUB_OUTPUT"
+        fi
+
+        if [ -n "${{ inputs.post_build_script }}" ]; then
+          echo "has_post_build_script=true" >> "$GITHUB_OUTPUT"
+
+          if [ ! -e "${{ inputs.post_build_script }}" ];  then
+            echo "Specified post-build script not exists: \"${{ inputs.post_build_script }}\""
+            exit 1
+          fi
+          echo "post_build_script=$(realpath "${{ inputs.post_build_script }}")" >> "$GITHUB_OUTPUT"
+        fi
+
+        if [ -n "${{ inputs.overlayfs_rootdir }}" ]; then
+          echo "has_overlayfs_rootdir=true" >> "$GITHUB_OUTPUT"
+
+          if [ ! -e "${{ inputs.overlayfs_rootdir }}" ];  then
+            echo "Specified OverlayFS directory not exists: \"${{ inputs.overlayfs_rootdir }}\""
+            exit 1
+          fi
+          echo "overlayfs_rootdir=$(realpath "${{ inputs.overlayfs_rootdir }}")" >> "$GITHUB_OUTPUT"
+        fi
+
+        absWorkdirPath=`realpath -m "${{ inputs.workdir }}"`
+        mkdir -p $absWorkdirPath
+        echo "workdir=$absWorkdirPath" >> "$GITHUB_OUTPUT"
+
+        absOutputPath=`realpath -m "${{ inputs.output_path }}"`
+        mkdir -p $absOutputPath
+        echo "output_path=$absOutputPath" >> "$GITHUB_OUTPUT"
+
+    # 1. Buildrootイメージの準備
+    #
+    # Buildrootを最低限動作させるためのイメージ (enchan1207/buildroot_base) をもとに、
+    # Raspberry Pi 3用にビルドされたツールチェーンを同梱したイメージを作成します。
+
+    # イメージをキャッシュからリストア
+    - name: restore cached Buildroot image
+      id: restore-buildroot-image
+      uses: actions/cache/restore@v3
+      with:
+        path: "${{ steps.args.outputs.workdir }}/enchan1207-buildroot"
+        key: buildroot_docker_image
+
+    # キャッシュされていれば読み込む, そうでなければビルドする
+    - name: load image if cached
+      if: steps.restore-buildroot-image.outputs.cache-hit == 'true'
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: docker load -i "enchan1207-buildroot"
+    - name: build Buildroot image
+      if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: ./setup_buildroot_image.sh
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+
+    # ビルドしたイメージを出力し、キャッシュ
+    - name: write built image to file
+      if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: docker save "enchan1207/buildroot" -o "enchan1207-buildroot"
+    - name: cache Buildroot image
+      if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v3
+      with:
+        path: "${{ steps.args.outputs.workdir }}/enchan1207-buildroot"
+        key: buildroot_docker_image
+
+    # 2. ビルドの準備
+    #
+    # 構成ファイルのコピーやビルドキャッシュの復元など、イメージのビルドに必要な準備を行います。
+
+    # リポジトリにある構成ファイルを、キャッシュパスを書き換えてBuildrootディレクトリにコピー
+    - name: copy configuration file
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: |
+        mkdir -p dist
+        cat "${{ steps.args.outputs.config_file }}" | sed "s/^BR2_CCACHE_DIR=.*$/BR2_CCACHE_DIR=\"\/cache\"/" > dist/.config
+
+    # ビルドキャッシュを復元
+    - name: restore build cache
+      id: restore-build-cache
+      uses: actions/cache/restore@v3
+      with:
+        path: |
+          ${{ steps.args.outputs.workdir }}/dist.tar.gz
+          ${{ steps.args.outputs.workdir }}/cache.tar.gz
+        key: buildroot_build_cache
+    - name: extract build cache
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: |
+        if [ -e cache.tar.gz -a -e dist.tar.gz ]; then 
+          file dist.tar.gz cache.tar.gz
+          tar xzf dist.tar.gz
+          tar xzf cache.tar.gz
+        fi
+
+    # 3. イメージのビルド
+    #
+    # Buildrootを呼び出し、イメージのビルドを行います。
+    # さらに、ビルド結果からイメージを同梱したリリースドラフトを作成します。
+
+    # Dockerイメージを起動
+    - name: boot Buildroot container
+      id: br_container
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: |
+        containerID=`docker run --rm -id -v ./dist:/dist -v ./cache:/cache enchan1207/buildroot`
+        echo "Buildroot container started: $containerID"
+        echo "container_id=$containerID" >> "$GITHUB_OUTPUT"
+
+    # プレビルドスクリプトがある場合はコンテナにコピーして実行
+    - name: exec pre-build script
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: |
+        if [ "${{ steps.args.outputs.has_pre_build_script }}" != "true" ]; then
+          exit 0
+        fi
+
+        echo "Exec pre-build script"
+        docker cp \
+          ${{ steps.args.outputs.pre_build_script }} \
+          ${{ steps.br_container.outputs.container_id }}:/buildroot/pre-build.sh \
+          > /dev/null 2>&1
+        docker exec ${{ steps.br_container.outputs.container_id }} /buildroot/pre-build.sh
+
+    # Raspberry Piイメージをビルドし、結果を取り出す
+    - name: build Raspberry Pi image
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: |
+        docker exec ${{ steps.br_container.outputs.container_id }} make O=/dist
+    - name: take out built raspberry pi image
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: |
+        sudo mv dist/images/sdcard.img ${{ steps.args.outputs.output_path }}
+        sudo chown -R runner:runner ${{ steps.args.outputs.output_path }}
+
+    # ポストビルドスクリプトがある場合はコンテナにコピーして実行
+    - name: exec post-build script
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: |
+        if [ "${{ steps.args.outputs.has_post_build_script }}" != "true" ]; then
+          exit 0
+        fi
+
+        echo "Exec post-build script"
+        docker cp \
+          ${{ steps.args.outputs.post_build_script }} \
+          ${{ steps.br_container.outputs.container_id }}:/buildroot/post-build.sh \
+          > /dev/null 2>&1
+        docker exec ${{ steps.br_container.outputs.container_id }} /buildroot/post-build.sh
+
+    # 4. 後処理
+    #
+    # Buildroot出力ディレクトリおよびccacheキャッシュディレクトリを圧縮し、
+    # 既存キャッシュを削除したのち保存します。
+
+    #　パーミッションを戻し、キャッシュを圧縮
+    - name: cache preparation
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: |
+        echo "Prepare for cache..."
+        sudo chown -R runner:runner dist
+        tar czf dist.tar.gz dist
+        sudo chown -R runner:runner cache
+        tar czf cache.tar.gz cache
+        echo "Finished."
+
+    # 既存キャッシュを削除して上書き
+    - name: remove existing cache
+      if: steps.restore-build-cache.outputs.cache-hit == 'true'
+      shell: bash
+      working-directory: ${{ steps.args.outputs.workdir }}
+      run: |
+        echo "Remove existing Buildroot build cache..."
+        gh api \
+          --method DELETE \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          /repos/${{ github.repository }}/actions/caches?key=buildroot_build_cache
+        echo "Finished."
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+    - name: save build cache
+      uses: actions/cache/save@v3
+      with:
+        path: |
+          ${{ steps.args.outputs.workdir }}/dist.tar.gz
+          ${{ steps.args.outputs.workdir }}/cache.tar.gz
+        key: buildroot_build_cache
