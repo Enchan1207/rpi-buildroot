@@ -221,9 +221,10 @@ runs:
         if [ "${{ steps.args.outputs.verbose_log }}" = "true" ]; then
           logFilter=""
         else
-          logFilter=" | sed -rn '/^\x1B\[7m>>> /p'"
+          logFilter="sed -rn '/^\x1B\[7m>>> /p'"
         fi
-        docker exec ${{ steps.br_container.outputs.container_id }} make O=/dist $logFilter
+        command="make O=/dist"
+        docker exec ${{ steps.br_container.outputs.container_id }} $command | $logFilter
     - name: take out built raspberry pi image
       shell: bash
       working-directory: ${{ github.action_path }}
