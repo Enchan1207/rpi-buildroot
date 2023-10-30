@@ -31,6 +31,11 @@ inputs:
     description: "Path to RootFS-overlay directory"
     required: false
 
+  verbose_log:
+    description: "Emit verbose (not omitted) build log from Buildroot. (NOTE: Buildroot will emit huge log)"
+    required: false
+    default: false
+
 runs:
   using: "composite"
   steps:
@@ -83,6 +88,14 @@ runs:
           rootfsOverlayDir=`realpath "${{ inputs.rootfs_overlay_dir }}"`
           echo "rootfs overlay root: $rootfsOverlayDir"
           echo "rootfs_overlay_dir=$rootfsOverlayDir" >> "$GITHUB_OUTPUT"
+        fi
+
+        if [ "${{ inputs.verbose_log }}" = "true" ]; then
+          echo "verbose log output enabled"
+          echo "verbose_log=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "verbose log output disabled"
+          echo "verbose_log=false" >> "$GITHUB_OUTPUT"
         fi
 
         outputAbsPath=`realpath -m "${{ inputs.output_path }}"`
@@ -204,7 +217,12 @@ runs:
     # Raspberry Piイメージをビルドし、結果を取り出す
     - name: build Raspberry Pi image
       shell: bash
-      run: docker exec ${{ steps.br_container.outputs.container_id }} make O=/dist
+      run: |
+        logFilter=""
+        if [ "${{ steps.args.outputs.verbose_log }}" = "true" ]; then
+          logFilter=" | sed -rn '/^\x1B\[7m>>> /p'"
+        fi
+        docker exec ${{ steps.br_container.outputs.container_id }} make O=/dist $logFilter
     - name: take out built raspberry pi image
       shell: bash
       working-directory: ${{ github.action_path }}
