@@ -221,7 +221,7 @@ runs:
         if [ "${{ steps.args.outputs.verbose_log }}" = "true" ]; then
           logFilter=""
         else
-          logFilter="sed -rn '/^\\\\x1B\[7m>>> /p'"
+          logFilter="sed -rn \"/^\\\\x1B\[7m>>> /p\""
         fi
         command="make O=/dist"
         docker exec ${{ steps.br_container.outputs.container_id }} $command | $logFilter
