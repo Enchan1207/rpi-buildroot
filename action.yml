@@ -218,8 +218,9 @@ runs:
     - name: build Raspberry Pi image
       shell: bash
       run: |
-        logFilter=""
         if [ "${{ steps.args.outputs.verbose_log }}" = "true" ]; then
+          logFilter=""
+        else
           logFilter=" | sed -rn '/^\x1B\[7m>>> /p'"
         fi
         docker exec ${{ steps.br_container.outputs.container_id }} make O=/dist $logFilter
