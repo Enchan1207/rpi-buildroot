@@ -223,7 +223,7 @@ runs:
           logDestination="/dev/null"
         fi
         echo "Build Raspberry Pi image..."
-        docker exec ${{ steps.br_container.outputs.container_id }} make O=/dist > $logDestination 2>&1
+        docker exec ${{ steps.br_container.outputs.container_id }} make O=/dist 2>&1 | tee $logDestination | sed -rn "/^\x1b\[7m>>> /p"
         if [ $? -eq 0 ]; then
           echo "Finished."
         else
