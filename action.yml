@@ -292,7 +292,7 @@ runs:
           --method DELETE \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
-          /repos/${{ github.repository }}/actions/caches?key=buildroot_build_cache
+          /repos/${{ github.repository }}/actions/caches?key=${{ inputs.build_cache_key }}
         echo "Finished."
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
