@@ -35,6 +35,16 @@ inputs:
     description: "Buildroot log output path"
     required: false
 
+  build_cache_key:
+    description: "Actions cache key of Buildroot"
+    required: false
+    default: "buildroot_build_cache-${{ github.ref_name }}"
+
+  build_cache_restore_key:
+    description: "Actions cache restore key of Buildroot"
+    required: false
+    default: "buildroot_build_cache"
+
 runs:
   using: "composite"
   steps:
@@ -154,7 +164,8 @@ runs:
         path: |
           ${{ github.action_path }}/dist.tar.gz
           ${{ github.action_path }}/cache.tar.gz
-        key: buildroot_build_cache
+        key: ${{ inputs.build_cache_key }}
+        restore-keys: ${{ inputs.build_cache_restore_key }}
     - name: extract build cache
       shell: bash
       working-directory: ${{ github.action_path }}
@@ -291,4 +302,4 @@ runs:
         path: |
           ${{ github.action_path }}/dist.tar.gz
           ${{ github.action_path }}/cache.tar.gz
-        key: buildroot_build_cache
+        key: ${{ inputs.build_cache_key }}
