@@ -108,7 +108,8 @@ runs:
         fi
 
         outputAbsPath=`realpath -m "${{ inputs.output_path }}"`
-        mkdir -p $outputAbsPath
+        outputDir=`dirname $outputAbsPath`
+        mkdir -p $outputDir
         echo "Distribution destination: $outputAbsPath"
         echo "output_path=$outputAbsPath" >> "$GITHUB_OUTPUT"
 
