@@ -201,7 +201,8 @@ runs:
           mkdir rfs
           volumeArgument="-v ./dist:/dist -v ./cache:/cache -v ./rfs:/rfs"
         fi
-        containerID=`docker run --rm -id $volumeArgument enchan1207/buildroot_base`
+        userArgument="-u $(id -u):$(id -g)"
+        containerID=`docker run --rm -id $userArgument $volumeArgument enchan1207/buildroot_base`
         echo "Buildroot container started: $containerID"
         echo "container_id=$containerID" >> "$GITHUB_OUTPUT"
 
@@ -243,8 +244,7 @@ runs:
       working-directory: ${{ github.action_path }}
       run: |
         ls -la dist/images
-        sudo mv dist/images/sdcard.img ${{ steps.args.outputs.output_path }}
-        sudo chown -R runner:runner ${{ steps.args.outputs.output_path }}
+        mv dist/images/sdcard.img ${{ steps.args.outputs.output_path }}
 
     # ポストビルドスクリプトがある場合はコンテナにコピーして実行
     - name: exec post-build script
@@ -266,15 +266,13 @@ runs:
     # Buildroot出力ディレクトリおよびccacheキャッシュディレクトリを圧縮し、
     # 既存キャッシュを削除したのち保存します。
 
-    #　パーミッションを戻し、キャッシュを圧縮
+    #　キャッシュを圧縮
     - name: cache preparation
       shell: bash
       working-directory: ${{ github.action_path }}
       run: |
         echo "Prepare for cache..."
-        sudo chown -R runner:runner dist
         tar czf dist.tar.gz dist
-        sudo chown -R runner:runner cache
         tar czf cache.tar.gz cache
         echo "Finished."
 
