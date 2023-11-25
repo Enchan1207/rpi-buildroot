@@ -38,7 +38,7 @@ inputs:
   build_cache_key:
     description: "Actions cache key of Buildroot"
     required: false
-    default: "buildroot_build_cache-${{ github.ref_name }}"
+    default: "buildroot_build_cache-${{ runner.name }}-${{ github.ref_name }}"
 
   build_cache_restore_key:
     description: "Actions cache restore key of Buildroot"
@@ -115,42 +115,39 @@ runs:
 
     # 1. Buildrootイメージの準備
     #
-    # Buildrootを最低限動作させるためのイメージ (enchan1207/buildroot_base) をもとに、
-    # Raspberry Pi 3用にビルドされたツールチェーンを同梱したイメージを作成します。
+    # Buildrootを動作させるためのイメージ (enchan1207/buildroot_base) を取得します。
 
     # イメージをキャッシュからリストア
     - name: restore cached Buildroot image
       id: restore-buildroot-image
       uses: actions/cache/restore@v3
       with:
-        path: "${{ github.action_path }}/enchan1207-buildroot"
+        path: "${{ github.action_path }}/enchan1207-buildroot_base"
         key: buildroot_docker_image
 
-    # キャッシュされていれば読み込む, そうでなければビルドする
+    # キャッシュになければpullする
     - name: load image if cached
       if: steps.restore-buildroot-image.outputs.cache-hit == 'true'
       shell: bash
       working-directory: ${{ github.action_path }}
-      run: docker load -i "enchan1207-buildroot"
-    - name: build Buildroot image
+      run: docker load -i "enchan1207-buildroot_base"
+    - name: pull Buildroot base image
       if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ github.action_path }}
-      run: ./setup_buildroot_image.sh
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: docker pull enchan1207/buildroot_base
 
     # ビルドしたイメージを出力し、キャッシュ
     - name: write built image to file
       if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ github.action_path }}
-      run: docker save "enchan1207/buildroot" -o "enchan1207-buildroot"
+      run: docker save "enchan1207/buildroot" -o "enchan1207-buildroot_base"
     - name: cache Buildroot image
       if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
       uses: actions/cache/save@v3
       with:
-        path: "${{ github.action_path }}/enchan1207-buildroot"
+        path: "${{ github.action_path }}/enchan1207-buildroot_base"
         key: buildroot_docker_image
 
     # 2. ビルドの準備
@@ -177,7 +174,7 @@ runs:
           tar xzf cache.tar.gz
         fi
 
-    # リポジトリにある構成ファイルを、キャッシュパスを書き換えてBuildrootディレクトリにコピー
+    # リポジトリにある構成ファイルを、パスを書き換えてBuildrootディレクトリにコピー
     - name: copy configuration file
       shell: bash
       working-directory: ${{ github.action_path }}
@@ -190,8 +187,7 @@ runs:
 
     # 3. イメージのビルド
     #
-    # Buildrootを呼び出し、イメージのビルドを行います。
-    # さらに、ビルド結果からイメージを同梱したリリースドラフトを作成します。
+    # Buildrootによりイメージのビルドを行います。
 
     # Dockerイメージを起動
     - name: boot Buildroot container
@@ -205,7 +201,7 @@ runs:
           mkdir rfs
           volumeArgument="-v ./dist:/dist -v ./cache:/cache -v ./rfs:/rfs"
         fi
-        containerID=`docker run --rm -id $volumeArgument enchan1207/buildroot`
+        containerID=`docker run --rm -id $volumeArgument enchan1207/buildroot_base`
         echo "Buildroot container started: $containerID"
         echo "container_id=$containerID" >> "$GITHUB_OUTPUT"
 
@@ -293,8 +289,8 @@ runs:
           --method DELETE \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
-          /repos/${{ github.repository }}/actions/caches?key=buildroot_build_cache
-        echo "Finished."
+          /repos/${{ github.repository }}/actions/caches?key=${{ inputs.build_cache_key }}
+        echo "Cache ${{ inputs.build_cache_key }} removed."
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
     - name: save build cache
