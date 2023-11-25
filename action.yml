@@ -183,6 +183,7 @@ runs:
         cat "${{ steps.args.outputs.config_file }}" \
           | sed "s/^BR2_CCACHE_DIR=.*$/BR2_CCACHE_DIR=\"\/cache\"/" \
           | sed "s/^BR2_ROOTFS_OVERLAY=.*$/BR2_ROOTFS_OVERLAY=\"\/rfs\"/" \
+          | sed "s/^BR2_DL_DIR=.*$/BR2_DL_DIR=\"\/tmp\/buildroot\"/" \
           > dist/.config
 
     # 3. イメージのビルド
