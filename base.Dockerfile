@@ -36,4 +36,7 @@ RUN rm ${buildroot_name}.tar.gz
 RUN mv /${buildroot_name} /buildroot
 WORKDIR /buildroot
 
+# プロンプトの設定
+ENV PS1="\w \$ "
+
 ENTRYPOINT [ "/bin/bash" ]

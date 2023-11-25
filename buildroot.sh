@@ -34,11 +34,13 @@ if [ -n "$configFileName" -a -e "$configFileName" ]; then
     cp $configFileName ${distributionDir}/.config
 fi
 
-# コンテナを起動
-echo "Directory ${distributionDir} will be mounted to /${distributionDir}."
-echo "While invoke make, please use instead:"
+# コンテナ内外でdistのパスが変わるので、それを通知
+echo -e "Directory \x1b[35;1m${distributionDir}\x1b[0m will be mounted to \x1b[35;1m/${distributionDir}\x1b[0m."
+echo -e "While invoke \x1b[;1mmake\x1b[0m, please use it instead:"
 echo "    make O=/${distributionDir}"
-docker run --rm -it -v ./${distributionDir}:/${distributionDir} $baseImageName
+
+# スクリプト実行時と同じUID:GIDでコンテナを起動
+docker run --rm -it -u $(id -u):$(id -g) -v ./${distributionDir}:/${distributionDir} $baseImageName
 
 # 構成ファイル名が渡されていなければ終了
 if [ -z "$configFileName" ]; then
@@ -58,22 +60,9 @@ if [ ! -e "${distributionDir}/.config" ]; then
 fi
 
 # 渡された構成ファイルと現在手元にあるものを比較
-cmp "${distributionDir}/.config" "$configFileName" > /dev/null 2>&1;isNotModified=$?
+cmp "${distributionDir}/.config" "$configFileName" > /dev/null 2>&1; isNotModified=$?
 if [ $isNotModified -ne 0 ];then
     # 変更されていれば、configファイルをdistディレクトリから元の場所にコピー
     echo "Copy generated config from /${distributionDir} to ./${distributionDir}."
-    echo "This operation needs super-user permission (password may be required)."
     mv "${distributionDir}/.config" "$configFileName"
-    if [ $? -ne 0 ]; then
-        sudo mv "${distributionDir}/.config" "$configFileName"
-    fi
-
-    # 所有者を現在のユーザとグループに書き換える
-    # (Dockerコンテナが操作したファイルのownerがroot:rootに変わってしまう場合があるため)
-    currentUser=`whoami`
-    currentGroup=`id -g -n`
-    chown "$currentUser:$currentGroup" "$configFileName"
-    if [ $? -ne 0 ]; then
-        sudo chown "$currentUser:$currentGroup" "$configFileName"
-    fi
 fi
