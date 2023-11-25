@@ -1,7 +1,8 @@
 #
-#
+# gitignore
 #
 
 .DS_Store
 dist
 cache
+rpi-buildroot.wiki
