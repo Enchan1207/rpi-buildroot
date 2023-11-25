@@ -58,7 +58,7 @@ if [ ! -e "${distributionDir}/.config" ]; then
 fi
 
 # 渡された構成ファイルと現在手元にあるものを比較
-cmp "${distributionDir}/.config" "$configFileName" > /dev/null;isNotModified=$?
+cmp "${distributionDir}/.config" "$configFileName" > /dev/null 2>&1;isNotModified=$?
 if [ $isNotModified -ne 0 ];then
     # 変更されていれば、configファイルをdistディレクトリから元の場所にコピー
     echo "Copy generated config from /${distributionDir} to ./${distributionDir}."
