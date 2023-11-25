@@ -15,7 +15,7 @@ About basic usage and examples, see [wiki](https://github.com/Enchan1207/rpi-bui
 
 This repository provides:
 
- - **Buildroot base image**: The minimum Docker image for Buildroot to work. It's published on [Docker Hub](https://hub.docker.com/repository/docker/enchan1207/buildroot_base/general).
+ - **Buildroot base image**: The minimum Docker image for Buildroot to work. It's published on [Docker Hub](https://hub.docker.com/r/enchan1207/buildroot_base).
  - **GitHub Actions action**: The custom action for inclusion and use in other repositories.
 
 ~~External toolchain and legal information is included in release.~~  
