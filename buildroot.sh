@@ -17,6 +17,10 @@ baseImageInfo=`docker images --format json | jq -r "select(.Repository == \"${ba
 if [ -z "$baseImageInfo" ]; then
     echo "Docker image $baseImageName not found. pulling..."
     docker pull $baseImageName
+    if [ $? -ne 0 ]; then
+        echo "Failed to pull $baseImageName"
+        exit 1
+    fi
 fi
 
 # 成果物ディレクトリを作成
@@ -37,7 +41,7 @@ echo "    make O=/${distributionDir}"
 docker run --rm -it -v ./${distributionDir}:/${distributionDir} $baseImageName
 
 # 終了後、コンフィグが変更されているか確認
-if [ -e ${distributionDir}/.config -a -e $configFileName ]; then
+if [ -e ${distributionDir}/.config ]; then
     cmp ${distributionDir}/.config $configFileName
     if [ $? -ne 0 ]; then
         echo "Copy generated config from /${distributionDir} to ./${distributionDir}."
