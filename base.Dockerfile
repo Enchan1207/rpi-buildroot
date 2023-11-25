@@ -16,14 +16,17 @@ RUN apt-get -y install tzdata; \
     update-locale LANG=en_US.UTF8; \
     dpkg-reconfigure tzdata
 
-# 依存パッケージのインストール
-# ref: https://buildroot.org/downloads/manual/manual.html#requirement-optional
+# 必須パッケージのインストール
+# ref: https://buildroot.org/downloads/manual/manual.html#requirement-mandatory
 RUN apt-get -y install \
     git sed binutils build-essential diffutils patch gzip bzip2 perl tar cpio \
     unzip rsync file bc wget findutils libncursesw5-dev ssh
 
-# Python用の追加パッケージのインストール
-RUN apt-get -y install python3-pip python3-setuptools
+# オプションパッケージのインストール
+# ref: https://buildroot.org/downloads/manual/manual.html#requirement-optional
+RUN apt-get -y install \
+    python3 asciidoc w3m graphviz python3-pip python3-setuptools
+RUN pip3 install matplotlib
 
 # Buildrootの取得・展開
 ARG buildroot_name=buildroot-${buildroot_version}
