@@ -1,0 +1,45 @@
+#
+# リリース時にタグ名からブランチ名を割り出してpushする
+#
+
+name: release information
+
+on:
+  release:
+    types:
+      - released
+
+env:
+  release_version_pattern: "^(v[1-9]\\.[0-9]\\.[0-9])$"
+  release_branch_pattern: "^(v[1-9])\\.[0-9]\\.[0-9]$"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup git
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+      - name: identify branch name from ref
+        id: release_info
+        run: |
+          githubRef=${{ github.event.release.tag_name  }}
+          echo "$githubRef"
+          branchName=$( echo "$githubRef" \
+            | sed -rn "/${{ env.release_branch_pattern }}/p" \
+            | sed -r "s/${{ env.release_branch_pattern }}/\1/" )
+          if [ -n "$branchName" ]; then
+            echo "switch to branch $branchName (from ref $githubRef)"
+          else
+            echo "::error::ref $githubRef is not valid."
+            exit 1
+          fi
+          echo "branch_name=$branchName" >> "$GITHUB_OUTPUT"
+
+      - name: push to main-version branch
+        run: git push -f origin "HEAD:refs/heads/${{ steps.release_info.outputs.branch_name }}"
