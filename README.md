@@ -23,11 +23,12 @@ About basic usage and examples, see [wiki](https://github.com/Enchan1207/rpi-bui
 ### Most simple; just build image
 
 ```yml
- - uses: your-username/create-custom-rpi-image@v1
- - with:
-     github_token: ${{ secrets.GITHUB_TOKEN }}
-     config_file: 'path/to/buildroot.config'
-     output_path: 'sdcard.img'
+- name: Create Raspberry Pi image
+  uses: Enchan1207/rpi-buildroot@v1
+  with:
+    github_token: ${{ secrets.GITHUB_TOKEN }}
+    config_file: 'path/to/buildroot.config'
+    output_path: 'sdcard.img'
 ```
 
 ### Details; action inputs
