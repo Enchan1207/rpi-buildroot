@@ -4,6 +4,9 @@
 
 name: "create-custom-rpi-image"
 description: "Create custom Raspberry Pi image using Buildroot"
+branding:
+  icon: "cpu"
+  color: "yellow"
 
 inputs:
   github_token:
