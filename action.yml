@@ -2,7 +2,7 @@
 # GitHub Action for create Buildroot image of Raspberry Pi
 #
 
-name: "create-custom-rpi-image"
+name: "rpi-buildroot"
 description: "Create custom Raspberry Pi image using Buildroot"
 branding:
   icon: "cpu"
