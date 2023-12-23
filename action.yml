@@ -145,7 +145,7 @@ runs:
       if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ github.action_path }}
-      run: docker save "enchan1207/buildroot" -o "enchan1207-buildroot_base"
+      run: docker save "enchan1207/buildroot_base" -o "enchan1207-buildroot_base"
     - name: cache Buildroot image
       if: steps.restore-buildroot-image.outputs.cache-hit != 'true'
       uses: actions/cache/save@v3
